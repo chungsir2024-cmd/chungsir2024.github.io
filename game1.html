@@ -1,0 +1,921 @@
+ <!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>我的分數薄餅店</title>
+    <style>
+        * { 
+            box-sizing: border-box; 
+            margin: 0; 
+            padding: 0; 
+            user-select: none; 
+            -webkit-user-select: none; 
+            -webkit-touch-callout: none;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+        }
+        body, html { 
+            width: 100%; 
+            height: 100%; 
+            overflow: hidden; 
+            background: #1a1a1a; 
+            color: #fff; 
+            touch-action: none;
+        }
+        #canvas-container { width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
+        
+        .ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 15px; }
+        .interactive { pointer-events: auto; }
+
+        /* 獨立最高層級的全螢幕按鈕，解決 iPad 觸控失效問題 */
+        #fullscreen-btn { 
+            position: fixed; 
+            top: 15px; 
+            right: 15px; 
+            z-index: 999; 
+            padding: 10px 16px; 
+            font-size: 0.95rem; 
+            background: rgba(0,0,0,0.8); 
+            border: 1.5px solid #fff; 
+            color: #fff; 
+            border-radius: 10px; 
+            cursor: pointer; 
+            font-weight: bold; 
+            pointer-events: auto !important;
+            touch-action: manipulation;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+        }
+
+        #main-menu { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 20; background: rgba(0,0,0,0.4); display: flex; flex-direction: column; justify-content: center; align-items: center; transition: opacity 0.8s ease; }
+        .title { font-size: 3.2rem; font-weight: 900; color: #ffca28; text-shadow: 4px 4px 0 #d84315, 0 0 20px rgba(255,193,7,0.6); margin-bottom: 25px; letter-spacing: 2px; text-align: center; }
+        .menu-btns { display: flex; flex-direction: column; gap: 15px; width: 240px; }
+        
+        .btn { 
+            padding: 14px 22px; 
+            font-size: 1.15rem; 
+            font-weight: bold; 
+            border: none; 
+            border-radius: 14px; 
+            cursor: pointer; 
+            background: #ff7043; 
+            color: white; 
+            box-shadow: 0 5px 0 #d84315, 0 8px 12px rgba(0,0,0,0.3); 
+            transition: transform 0.1s ease, background 0.1s ease; 
+            text-align: center;
+            min-height: 52px; 
+            touch-action: manipulation;
+        }
+        .btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #d84315; }
+        .btn-secondary { background: #26a69a; box-shadow: 0 5px 0 #00695c; }
+
+        #difficulty-select { display: none; margin-top: 10px; background: rgba(255,255,255,0.95); border-radius: 12px; padding: 10px; flex-direction: column; gap: 8px; box-shadow: 0 10px 20px rgba(0,0,0,0.3); }
+        .diff-opt { padding: 10px; color: #333; font-weight: bold; cursor: pointer; border-radius: 6px; text-align: center; font-size: 1.1rem; }
+        .diff-opt.selected { background: #ff7043; color: white; }
+
+        /* 頂部 HUD 資訊列 */
+        #hud-bar { 
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            right: 15px;
+            z-index: 30;
+            display: flex; 
+            justify-content: space-between; 
+            align-items: flex-start; 
+            pointer-events: none;
+        }
+        .hud-game-only { display: none; }
+        .hud-card { background: rgba(0,0,0,0.75); backdrop-filter: blur(5px); border: 2px solid #ffca28; border-radius: 12px; padding: 10px 18px; font-size: 1.25rem; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.3); pointer-events: auto; }
+        .combo-badge { color: #ff4081; font-size: 1.4rem; margin-left: 10px; }
+
+        #action-bar { 
+            display: none; 
+            position: absolute; 
+            z-index: 15; 
+            flex-direction: row; 
+            gap: 12px; 
+            transform: translate(-50%, 0); 
+            pointer-events: auto;
+            white-space: nowrap;
+        }
+        .btn-undo { background: #78909c; box-shadow: 0 5px 0 #455a64; }
+
+        .bubble { position: absolute; background: white; color: #d32f2f; border: 3px solid #333; border-radius: 20px; padding: 10px 18px; font-size: 1.7rem; font-weight: 900; box-shadow: 0 6px 12px rgba(0,0,0,0.3); transform: translate(-50%, -100%); display: none; pointer-events: none; z-index: 15; }
+        .bubble::after { content: ''; position: absolute; bottom: -12px; left: 50%; transform: translateX(-50%); border-width: 12px 10px 0; border-style: solid; border-color: #333 transparent; display: block; width: 0; }
+
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.75); z-index: 100; justify-content: center; align-items: center; }
+        .modal-content { background: #fff; color: #333; border-radius: 18px; padding: 25px; width: 90%; max-width: 440px; position: relative; box-shadow: 0 15px 30px rgba(0,0,0,0.5); text-align: center; }
+        .close-btn { position: absolute; top: 12px; right: 18px; font-size: 2rem; font-weight: bold; cursor: pointer; color: #888; }
+        .input-group { margin: 20px 0; }
+        .input-group input { width: 100%; padding: 14px; font-size: 1.2rem; border: 2px solid #ccc; border-radius: 10px; text-align: center; }
+        
+        .leaderboard-tabs { display: flex; justify-content: center; gap: 8px; margin-bottom: 15px; }
+        .tab-btn { padding: 8px 16px; border: 1px solid #ff7043; background: #fff; color: #ff7043; border-radius: 20px; cursor: pointer; font-weight: bold; font-size: 1rem; }
+        .tab-btn.active { background: #ff7043; color: #fff; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 10px; text-align: center; border-bottom: 1px solid #eee; font-size: 1.05rem; }
+        th { background: #f5f5f5; color: #555; }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+    <!-- 最高層級按鈕：解決首頁無法點擊的問題 -->
+    <button id="fullscreen-btn" onclick="toggleFullscreen()">⛶ 新分頁全螢幕</button>
+
+    <div id="canvas-container"></div>
+
+    <div class="ui-layer">
+        <div id="hud-bar">
+            <div id="score-card" class="hud-card hud-game-only">得分: <span id="score-val">0</span> <span id="combo-val" class="combo-badge"></span></div>
+            <!-- 人數卡片預留與全螢幕按鈕錯開的高度 (margin-top: 50px) -->
+            <div id="queue-card" class="hud-card hud-game-only" style="border-color: #ff5252; margin-top: 50px;">排隊人數: <span id="queue-val">0</span>/5</div>
+        </div>
+
+        <div id="action-bar" class="interactive">
+            <button class="btn btn-undo" onclick="popSliceFromBox()">↩ 退回</button>
+            <button class="btn" style="background:#4caf50; box-shadow: 0 5px 0 #2e7d32;" onclick="submitBox()">蓋上盒蓋出餐！</button>
+        </div>
+    </div>
+
+    <div id="main-menu">
+        <div class="title">我的分數薄餅店</div>
+        <div class="menu-btns interactive">
+            <button class="btn" onclick="openNameModal()">開始遊戲</button>
+            <button class="btn btn-secondary" onclick="openLeaderboard()">排行榜</button>
+            <button class="btn btn-secondary" onclick="toggleDiffSelect()">難度: <span id="current-diff-label">中</span></button>
+            
+            <div id="difficulty-select">
+                <div class="diff-opt" onclick="setDifficulty('Low')">低 (簡單 - 4/8等份)</div>
+                <div class="diff-opt selected" onclick="setDifficulty('Medium')">中 (標準 - 4/6/8等份)</div>
+                <div class="diff-opt" onclick="setDifficulty('High')">高 (挑戰 - 快速出單)</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="customer-bubble" class="bubble">1/2</div>
+
+    <div id="name-modal" class="modal">
+        <div class="modal-content">
+            <h3>請輸入大廚名字</h3>
+            <div class="input-group">
+                <input type="text" id="player-name-input" maxlength="12" value="分數大廚">
+            </div>
+            <button class="btn interactive" style="width:100%" onclick="startGame()">進入薄餅店</button>
+        </div>
+    </div>
+
+    <div id="leaderboard-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal('leaderboard-modal')">&times;</span>
+            <h3 style="margin-bottom:12px;">🏆 英雄排行榜</h3>
+            <div class="leaderboard-tabs">
+                <button class="tab-btn active" id="tab-Low" onclick="loadLeaderboard('Low')">低難度</button>
+                <button class="tab-btn" id="tab-Medium" onclick="loadLeaderboard('Medium')">中難度</button>
+                <button class="tab-btn" id="tab-High" onclick="loadLeaderboard('High')">高難度</button>
+            </div>
+            <table>
+                <thead>
+                    <tr><th>排名</th><th>名字</th><th>分數</th></tr>
+                </thead>
+                <tbody id="leaderboard-body">
+                    <tr><td colspan="3">載入中...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="gameover-modal" class="modal">
+        <div class="modal-content">
+            <h2 style="color:#d32f2f; font-size:2rem; margin-bottom:10px;">GAME OVER</h2>
+            <p>客人都排到店外啦！</p>
+            <div style="margin: 20px 0; font-size: 1.5rem; font-weight: bold;">
+                最終得分：<span id="final-score" style="color:#ff7043;">0</span>
+            </div>
+            <button class="btn interactive" style="width:100%" onclick="backToMenu()">返回主選單</button>
+        </div>
+    </div>
+
+    <script>
+        /* 1. 安全延遲載入的 iOS / iPad 音效系統 */
+        let AudioCtx = null;
+        function getAudioContext() {
+            if (!AudioCtx) {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                if (AudioContextClass) {
+                    AudioCtx = new AudioContextClass();
+                }
+            }
+            if (AudioCtx && AudioCtx.state === 'suspended') {
+                AudioCtx.resume();
+            }
+            return AudioCtx;
+        }
+
+        function unlockAudio() {
+            getAudioContext();
+        }
+        window.addEventListener('pointerdown', unlockAudio, { once: false });
+        window.addEventListener('touchstart', unlockAudio, { once: false });
+
+        function playSound(type) {
+            const ctx = getAudioContext();
+            if (!ctx) return;
+
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            
+            const now = ctx.currentTime;
+            if (type === 'drag') {
+                osc.frequency.setValueAtTime(300, now);
+                osc.frequency.exponentialRampToValueAtTime(600, now + 0.1);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.1);
+                osc.start(now); osc.stop(now + 0.1);
+            } else if (type === 'drop') {
+                osc.frequency.setValueAtTime(180, now);
+                gain.gain.setValueAtTime(0.25, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.12);
+                osc.start(now); osc.stop(now + 0.12);
+            } else if (type === 'undo') {
+                osc.frequency.setValueAtTime(450, now);
+                osc.frequency.exponentialRampToValueAtTime(220, now + 0.12);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.12);
+                osc.start(now); osc.stop(now + 0.12);
+            } else if (type === 'correct') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(523.25, now);
+                osc.frequency.setValueAtTime(659.25, now + 0.1);
+                osc.frequency.setValueAtTime(783.99, now + 0.2);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.4);
+                osc.start(now); osc.stop(now + 0.4);
+            } else if (type === 'wrong') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(180, now);
+                osc.frequency.linearRampToValueAtTime(110, now + 0.25);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.25);
+                osc.start(now); osc.stop(now + 0.25);
+            }
+        }
+
+        const GAS_API_URL = "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL"; 
+
+        let gameState = 'MENU'; 
+        let currentDifficulty = 'Medium';
+        let playerName = "分數大廚";
+        let score = 0;
+        let combo = 0;
+        let queue = [];
+        let boxSlices = []; 
+        let spawnTimer = null;
+        let spawnInterval = 6000; 
+
+        const DIFF_CONFIG = {
+            'Low': { startSpeed: 8000, minSpeed: 3500, slices: [4, 8] },
+            'Medium': { startSpeed: 6000, minSpeed: 2000, slices: [4, 6, 8] },
+            'High': { startSpeed: 4000, minSpeed: 1000, slices: [4, 6, 8] }
+        };
+
+        const DOOR_POSITION = new THREE.Vector3(3.6, 0, -3.0);
+
+        let scene, camera, renderer, raycaster, mouse;
+        let doorMesh, boxLidMesh, boxContainerMesh, boxContentsGroup;
+        let pizzaPlates = {}; 
+
+        function init3D() {
+            const container = document.getElementById('canvas-container');
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xfce4ec);
+
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+            camera.position.set(0, 3.2, 4.9);
+            camera.lookAt(0, 0.95, 0.8);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            container.appendChild(renderer.domElement);
+
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
+            scene.add(ambientLight);
+            const dirLight = new THREE.DirectionalLight(0xfff59d, 0.85);
+            dirLight.position.set(5, 10, 7);
+            dirLight.castShadow = true;
+            scene.add(dirLight);
+
+            const floorGeo = new THREE.PlaneGeometry(12, 12);
+            const floorMat = new THREE.MeshStandardMaterial({ color: 0x8d6e63 });
+            const floor = new THREE.Mesh(floorGeo, floorMat);
+            floor.rotation.x = -Math.PI / 2;
+            scene.add(floor);
+
+            const wallGeo = new THREE.PlaneGeometry(12, 6);
+            const wallMat = new THREE.MeshStandardMaterial({ color: 0xffecb3 });
+            const backWall = new THREE.Mesh(wallGeo, wallMat);
+            backWall.position.set(0, 3, -4);
+            scene.add(backWall);
+
+            const counterGeo = new THREE.BoxGeometry(7.2, 1.2, 1.6);
+            const counterMat = new THREE.MeshStandardMaterial({ color: 0x5d4037 });
+            const counter = new THREE.Mesh(counterGeo, counterMat);
+            counter.position.set(0, 0.6, 0.8);
+            counter.receiveShadow = true;
+            scene.add(counter);
+
+            const doorGeo = new THREE.BoxGeometry(1.5, 3, 0.1);
+            const doorMat = new THREE.MeshStandardMaterial({ color: 0x4e342e });
+            doorMesh = new THREE.Mesh(doorGeo, doorMat);
+            doorMesh.position.set(DOOR_POSITION.x, 1.5, DOOR_POSITION.z);
+            scene.add(doorMesh);
+
+            createPizzaBox();
+            createPizzaPlates();
+
+            window.addEventListener('resize', onWindowResize);
+            renderer.domElement.addEventListener('pointerdown', onPointerDown);
+        }
+
+        function createPizzaBox() {
+            boxContainerMesh = new THREE.Group();
+            boxContainerMesh.position.set(0.65, 1.25, 0.8);
+
+            const baseGeo = new THREE.BoxGeometry(1.35, 0.08, 1.35);
+            const boxMat = new THREE.MeshStandardMaterial({ color: 0xd7ccc8 });
+            const base = new THREE.Mesh(baseGeo, boxMat);
+            base.userData = { isBox: true };
+            boxContainerMesh.add(base);
+
+            const lidGeo = new THREE.BoxGeometry(1.35, 0.04, 1.35);
+            boxLidMesh = new THREE.Mesh(lidGeo, boxMat);
+            boxLidMesh.position.set(0, 0.35, -0.675);
+            boxLidMesh.rotation.x = -Math.PI / 2.8;
+            boxLidMesh.userData = { isBox: true };
+            boxContainerMesh.add(boxLidMesh);
+
+            boxContentsGroup = new THREE.Group();
+            boxContainerMesh.add(boxContentsGroup);
+
+            boxContainerMesh.userData = { isBox: true };
+            scene.add(boxContainerMesh);
+        }
+
+        function createPizzaPlates() {
+            const types = [4, 6, 8];
+
+            types.forEach(type => {
+                const group = new THREE.Group();
+                const posX = (type === 4) ? -2.4 : ((type === 6) ? -1.1 : 2.3);
+                group.position.set(posX, 1.25, 0.8);
+
+                const plateGeo = new THREE.CylinderGeometry(0.58, 0.52, 0.04, 32);
+                const plateMat = new THREE.MeshStandardMaterial({ color: 0xeceff1 });
+                const plate = new THREE.Mesh(plateGeo, plateMat);
+                group.add(plate);
+
+                const crustGeo = new THREE.CylinderGeometry(0.52, 0.52, 0.048, 32);
+                const crustMat = new THREE.MeshStandardMaterial({ color: 0xd87d2a });
+                const crust = new THREE.Mesh(crustGeo, crustMat);
+                crust.position.y = 0.038;
+                group.add(crust);
+
+                const radius = 0.46;
+                const pizzaGeo = new THREE.CylinderGeometry(radius, radius, 0.05, 32);
+                const pizzaMat = new THREE.MeshStandardMaterial({ color: 0xffca28 });
+                const pizza = new THREE.Mesh(pizzaGeo, pizzaMat);
+                pizza.position.y = 0.042;
+                pizza.userData = { sliceType: type };
+                group.add(pizza);
+
+                const pepGeo = new THREE.CylinderGeometry(0.07, 0.07, 0.012, 12);
+                const pepMat = new THREE.MeshStandardMaterial({ color: 0xc62828, roughness: 0.3 });
+                const basilGeo = new THREE.BoxGeometry(0.025, 0.01, 0.07);
+                const basilMat = new THREE.MeshStandardMaterial({ color: 0x2e7d32 });
+
+                const pepCount = type === 4 ? 6 : (type === 6 ? 6 : 8);
+                for (let i = 0; i < pepCount; i++) {
+                    const angle = (i / pepCount) * Math.PI * 2 + 0.2;
+                    const r = 0.26;
+                    
+                    const pep = new THREE.Mesh(pepGeo, pepMat);
+                    pep.position.set(Math.sin(angle) * r, 0.07, Math.cos(angle) * r);
+                    pep.userData = { sliceType: type };
+                    group.add(pep);
+
+                    const bAngle = angle + (Math.PI / pepCount);
+                    const basil = new THREE.Mesh(basilGeo, basilMat);
+                    basil.position.set(Math.sin(bAngle) * (r * 0.75), 0.07, Math.cos(bAngle) * (r * 0.75));
+                    basil.rotation.y = (i * 1.3);
+                    basil.userData = { sliceType: type };
+                    group.add(basil);
+                }
+
+                const sliceAngle = (Math.PI * 2) / type;
+                for (let i = 0; i < type; i++) {
+                    const lineGeo = new THREE.BoxGeometry(0.015, 0.055, radius + 0.05);
+                    lineGeo.translate(0, 0, (radius + 0.05) / 2);
+                    
+                    const lineMat = new THREE.MeshBasicMaterial({ color: 0x222222 });
+                    const line = new THREE.Mesh(lineGeo, lineMat);
+                    line.position.y = 0.045;
+                    line.rotation.y = i * sliceAngle;
+                    group.add(line);
+                }
+
+                const canvas = document.createElement('canvas');
+                canvas.width = 128; canvas.height = 64;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#ff7043'; ctx.fillRect(0,0,128,64);
+                ctx.fillStyle = '#ffffff'; ctx.font = 'bold 28px Sans-serif';
+                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillText(`分成 ${type} 份`, 64, 32);
+
+                const texture = new THREE.CanvasTexture(canvas);
+                const labelGeo = new THREE.PlaneGeometry(0.45, 0.22);
+                const labelMat = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
+                const label = new THREE.Mesh(labelGeo, labelMat);
+                label.position.set(0, 0.12, 0.52);
+                label.rotation.x = -Math.PI / 6;
+                group.add(label);
+
+                group.userData = { sliceType: type };
+                pizzaPlates[type] = group;
+                scene.add(group);
+            });
+
+            updatePlatesVisibility();
+        }
+
+        function updatePlatesVisibility() {
+            if (pizzaPlates[6]) {
+                pizzaPlates[6].visible = (currentDifficulty !== 'Low');
+            }
+        }
+
+        function setDifficulty(diff) {
+            currentDifficulty = diff;
+            document.getElementById('current-diff-label').innerText = 
+                diff === 'Low' ? '低' : (diff === 'Medium' ? '中' : '高');
+            
+            document.querySelectorAll('.diff-opt').forEach(el => el.classList.remove('selected'));
+            event.target.classList.add('selected');
+            document.getElementById('difficulty-select').style.display = 'none';
+            updatePlatesVisibility();
+        }
+
+        function toggleDiffSelect() {
+            const el = document.getElementById('difficulty-select');
+            el.style.display = (el.style.display === 'flex') ? 'none' : 'flex';
+        }
+
+        function openNameModal() {
+            document.getElementById('name-modal').style.display = 'flex';
+        }
+
+        function startGame() {
+            playerName = document.getElementById('player-name-input').value || "分數大廚";
+            closeModal('name-modal');
+            
+            document.getElementById('main-menu').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('main-menu').style.display = 'none';
+                document.querySelectorAll('.hud-game-only').forEach(el => el.style.display = 'block');
+                document.getElementById('action-bar').style.display = 'flex';
+            }, 800);
+
+            doorMesh.position.x = 4.5;
+
+            gameState = 'PLAYING';
+            score = 0;
+            combo = 0;
+            queue = [];
+            resetBox();
+            spawnInterval = DIFF_CONFIG[currentDifficulty].startSpeed;
+            updateHUD();
+
+            spawnCustomer();
+        }
+
+        function spawnCustomer() {
+            if (gameState !== 'PLAYING') return;
+            if (queue.length >= 5) {
+                triggerGameOver();
+                return;
+            }
+
+            const availableTypes = DIFF_CONFIG[currentDifficulty].slices;
+            const denom = availableTypes[Math.floor(Math.random() * availableTypes.length)];
+            const numer = Math.floor(Math.random() * (denom - 1)) + 1;
+
+            const customerMesh = createCustomerMesh();
+            customerMesh.position.copy(DOOR_POSITION);
+
+            const customer = {
+                id: Date.now(),
+                targetNumer: numer,
+                targetDenom: denom,
+                targetVal: numer / denom,
+                mesh: customerMesh,
+                targetPos: new THREE.Vector3(),
+                isArrived: false
+            };
+
+            queue.push(customer);
+            updateHUD();
+        }
+
+        function createCustomerMesh() {
+            const group = new THREE.Group();
+            
+            const bodyGeo = new THREE.CylinderGeometry(0.35, 0.35, 1.4, 16);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: Math.random() * 0xffffff });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.position.y = 0.7;
+
+            const headGeo = new THREE.SphereGeometry(0.3, 16, 16);
+            const headMat = new THREE.MeshStandardMaterial({ color: 0xffcc80 });
+            const head = new THREE.Mesh(headGeo, headMat);
+            head.position.y = 1.7;
+
+            group.add(body);
+            group.add(head);
+            scene.add(group);
+            return group;
+        }
+
+        function update3DUIProjections() {
+            const bubble = document.getElementById('customer-bubble');
+            if (queue.length > 0 && gameState === 'PLAYING' && queue[0].isArrived) {
+                const firstCustomer = queue[0];
+                bubble.innerText = `${firstCustomer.targetNumer}/${firstCustomer.targetDenom}`;
+                
+                const tempV = new THREE.Vector3();
+                firstCustomer.mesh.getWorldPosition(tempV);
+                tempV.y += 2.2;
+                tempV.project(camera);
+
+                const x = (tempV.x * .5 + .5) * window.innerWidth;
+                const y = (tempV.y * -.5 + .5) * window.innerHeight;
+
+                bubble.style.left = `${x}px`;
+                bubble.style.top = `${y}px`;
+                bubble.style.display = 'block';
+            } else {
+                bubble.style.display = 'none';
+            }
+
+            const actionBar = document.getElementById('action-bar');
+            if (gameState === 'PLAYING' && boxContainerMesh) {
+                const boxPos = new THREE.Vector3();
+                boxContainerMesh.getWorldPosition(boxPos);
+                
+                boxPos.z += 0.75;
+                boxPos.y -= 0.1;
+                boxPos.project(camera);
+
+                const bx = (boxPos.x * .5 + .5) * window.innerWidth;
+                const by = (boxPos.y * -.5 + .5) * window.innerHeight;
+
+                actionBar.style.left = `${bx}px`;
+                actionBar.style.top = `${by}px`;
+            }
+        }
+
+        function updateCustomersAnimation() {
+            queue.forEach((c, index) => {
+                const targetX = -1.4 + (index * 1.0);
+                const targetZ = -0.5 - (index * 0.5);
+                c.targetPos.set(targetX, 0, targetZ);
+
+                const dist = c.mesh.position.distanceTo(c.targetPos);
+                if (dist > 0.05) {
+                    c.isArrived = false;
+                    c.mesh.position.lerp(c.targetPos, 0.08);
+                    c.mesh.children[0].position.y = 0.7 + Math.sin(Date.now() * 0.015) * 0.05;
+                    c.mesh.lookAt(c.targetPos.x, c.mesh.position.y, c.targetPos.z);
+                } else {
+                    c.mesh.position.copy(c.targetPos);
+                    c.mesh.children[0].position.y = 0.7;
+                    c.mesh.rotation.set(0, 0, 0);
+                    c.isArrived = true;
+                }
+            });
+
+            update3DUIProjections();
+        }
+
+        function onPointerDown(event) {
+            if (gameState !== 'PLAYING') return;
+
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(scene.children, true);
+
+            for (let i = 0; i < intersects.length; i++) {
+                let obj = intersects[i].object;
+                
+                let tempObj = obj;
+                while (tempObj && tempObj !== scene) {
+                    if (tempObj.userData && tempObj.userData.isBox) {
+                        popSliceFromBox();
+                        return;
+                    }
+                    tempObj = tempObj.parent;
+                }
+
+                while (obj.parent && obj.parent !== scene) {
+                    if (obj.userData && obj.userData.sliceType) {
+                        addSliceToBox(obj.userData.sliceType);
+                        return;
+                    }
+                    obj = obj.parent;
+                }
+            }
+        }
+
+        function addSliceToBox(sliceType) {
+            playSound('drag');
+            boxSlices.push(1 / sliceType);
+            rebuildBoxVisuals();
+            setTimeout(() => playSound('drop'), 80);
+        }
+
+        function popSliceFromBox() {
+            if (boxSlices.length > 0) {
+                playSound('undo');
+                boxSlices.pop();
+                rebuildBoxVisuals();
+            }
+        }
+
+        function rebuildBoxVisuals() {
+            while (boxContentsGroup.children.length > 0) {
+                const child = boxContentsGroup.children[0];
+                if (child.geometry) child.geometry.dispose();
+                boxContentsGroup.remove(child);
+            }
+
+            let currentAngle = 0;
+            const radius = 0.46;
+
+            const pepGeo = new THREE.CylinderGeometry(0.065, 0.065, 0.012, 12);
+            const pepMat = new THREE.MeshStandardMaterial({ color: 0xc62828, roughness: 0.3 });
+            const basilGeo = new THREE.BoxGeometry(0.022, 0.01, 0.06);
+            const basilMat = new THREE.MeshStandardMaterial({ color: 0x2e7d32 });
+
+            boxSlices.forEach((sliceVal) => {
+                const sliceAngle = sliceVal * Math.PI * 2;
+
+                const wedgeGeo = new THREE.CylinderGeometry(
+                    radius, radius, 0.04, 24, 1, false, 
+                    currentAngle, sliceAngle
+                );
+                const wedgeMat = new THREE.MeshStandardMaterial({ color: 0xffca28 });
+                const wedgeMesh = new THREE.Mesh(wedgeGeo, wedgeMat);
+                wedgeMesh.position.set(0, 0.06, 0);
+                wedgeMesh.userData = { isBox: true };
+                boxContentsGroup.add(wedgeMesh);
+
+                const pCount = Math.max(1, Math.round(sliceAngle / (Math.PI / 3)));
+                for (let p = 0; p < pCount; p++) {
+                    const frac = (p + 0.5) / pCount;
+                    const a = currentAngle + sliceAngle * frac;
+                    const r = radius * 0.58;
+                    
+                    const pep = new THREE.Mesh(pepGeo, pepMat);
+                    pep.position.set(Math.sin(a) * r, 0.082, Math.cos(a) * r);
+                    pep.userData = { isBox: true };
+                    boxContentsGroup.add(pep);
+
+                    const bAngle = currentAngle + sliceAngle * (frac * 0.7 + 0.15);
+                    const basil = new THREE.Mesh(basilGeo, basilMat);
+                    basil.position.set(Math.sin(bAngle) * (radius * 0.35), 0.082, Math.cos(bAngle) * (radius * 0.35));
+                    basil.rotation.y = a;
+                    basil.userData = { isBox: true };
+                    boxContentsGroup.add(basil);
+                }
+
+                const lineGeo = new THREE.BoxGeometry(0.015, 0.045, radius);
+                lineGeo.translate(0, 0, radius / 2);
+                const lineMat = new THREE.MeshBasicMaterial({ color: 0x222222 });
+
+                const line1 = new THREE.Mesh(lineGeo, lineMat);
+                line1.position.set(0, 0.062, 0);
+                line1.rotation.y = currentAngle;
+                line1.userData = { isBox: true };
+                boxContentsGroup.add(line1);
+
+                currentAngle += sliceAngle;
+
+                const line2 = new THREE.Mesh(lineGeo, lineMat);
+                line2.position.set(0, 0.062, 0);
+                line2.rotation.y = currentAngle;
+                line2.userData = { isBox: true };
+                boxContentsGroup.add(line2);
+            });
+        }
+
+        function submitBox() {
+            if (gameState !== 'PLAYING' || queue.length === 0) return;
+
+            const currentCustomer = queue[0];
+            const currentTotal = boxSlices.reduce((a, b) => a + b, 0);
+
+            if (Math.abs(currentTotal - currentCustomer.targetVal) < 0.001) {
+                playSound('correct');
+                combo++;
+                score += 100 + (combo - 1) * 20;
+
+                scene.remove(currentCustomer.mesh);
+                queue.shift();
+            } else {
+                playSound('wrong');
+                combo = 0;
+                score = Math.max(0, score - 50);
+            }
+
+            resetBox();
+            updateHUD();
+        }
+
+        function resetBox() {
+            boxSlices = [];
+            rebuildBoxVisuals();
+        }
+
+        let lastSpawn = Date.now();
+        function gameLoop() {
+            if (gameState !== 'PLAYING') return;
+            const now = Date.now();
+            if (now - lastSpawn > spawnInterval) {
+                spawnCustomer();
+                lastSpawn = now;
+                spawnInterval = Math.max(DIFF_CONFIG[currentDifficulty].minSpeed, spawnInterval - 150);
+            }
+        }
+
+        function updateHUD() {
+            document.getElementById('score-val').innerText = score;
+            document.getElementById('combo-val').innerText = combo > 1 ? `${combo} 連擊!` : '';
+            document.getElementById('queue-val').innerText = queue.length;
+        }
+
+        function triggerGameOver() {
+            gameState = 'GAMEOVER';
+            playSound('wrong');
+            
+            document.getElementById('customer-bubble').style.display = 'none';
+            document.getElementById('final-score').innerText = score;
+            document.getElementById('gameover-modal').style.display = 'flex';
+
+            submitScoreToGAS(playerName, score, currentDifficulty, combo);
+        }
+
+        function submitScoreToGAS(name, score, difficulty, maxCombo) {
+            if (!GAS_API_URL || GAS_API_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) {
+                saveLocalScore(name, score, difficulty);
+                return;
+            }
+
+            fetch(GAS_API_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, score, difficulty, maxCombo })
+            }).catch(err => console.error("API 傳送錯誤:", err));
+        }
+
+        function openLeaderboard() {
+            document.getElementById('leaderboard-modal').style.display = 'flex';
+            loadLeaderboard(currentDifficulty);
+        }
+
+        function loadLeaderboard(diff) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`tab-${diff}`).classList.add('active');
+
+            const tbody = document.getElementById('leaderboard-body');
+            tbody.innerHTML = '<tr><td colspan="3">載入中...</td></tr>';
+
+            if (!GAS_API_URL || GAS_API_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) {
+                const localData = JSON.parse(localStorage.getItem(`lb_${diff}`) || '[]');
+                renderLeaderboardTable(localData);
+                return;
+            }
+
+            fetch(`${GAS_API_URL}?difficulty=${diff}`)
+                .then(res => res.json())
+                .then(data => renderLeaderboardTable(data))
+                .catch(() => {
+                    const localData = JSON.parse(localStorage.getItem(`lb_${diff}`) || '[]');
+                    renderLeaderboardTable(localData);
+                });
+        }
+
+        function renderLeaderboardTable(data) {
+            const tbody = document.getElementById('leaderboard-body');
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3">暫無紀錄</td></tr>';
+                return;
+            }
+            tbody.innerHTML = data.slice(0, 5).map((row, i) => `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td>${row.name}</td>
+                    <td>${row.score}</td>
+                </tr>
+            `).join('');
+        }
+
+        function saveLocalScore(name, score, diff) {
+            const key = `lb_${diff}`;
+            const list = JSON.parse(localStorage.getItem(key) || '[]');
+            list.push({ name, score });
+            list.sort((a, b) => b.score - a.score);
+            localStorage.setItem(key, JSON.stringify(list));
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).style.display = 'none';
+        }
+
+        function backToMenu() {
+            closeModal('gameover-modal');
+            queue.forEach(c => scene.remove(c.mesh));
+            queue = [];
+            resetBox();
+
+            document.querySelectorAll('.hud-game-only').forEach(el => el.style.display = 'none');
+            document.getElementById('action-bar').style.display = 'none';
+            document.getElementById('main-menu').style.display = 'flex';
+            document.getElementById('main-menu').style.opacity = '1';
+            doorMesh.position.x = 3.8;
+            gameState = 'MENU';
+        }
+
+        /* 智慧判斷全螢幕 / 新分頁邏輯 (含 Google 沙盒提示) */
+        function toggleFullscreen() {
+            const isIframe = (window.self !== window.top);
+            const currentUrl = window.location.href;
+            const isGoogleSandbox = currentUrl.includes('googleusercontent.com') || currentUrl.startsWith('about:');
+
+            if (isGoogleSandbox) {
+                alert("提示：您目前使用的是 Google Sites『嵌入程式碼』模式。如需在新分頁獨立開啟，請先將此網頁託管至 GitHub Pages，並改用『嵌入網址』方式放入 Google Sites！");
+                return;
+            }
+
+            if (isIframe) {
+                window.open(currentUrl, '_blank');
+            } else {
+                const elem = document.documentElement;
+                if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+                    if (elem.requestFullscreen) {
+                        elem.requestFullscreen().catch(() => window.open(currentUrl, '_blank'));
+                    } else if (elem.webkitRequestFullscreen) {
+                        elem.webkitRequestFullscreen();
+                    } else {
+                        window.open(currentUrl, '_blank');
+                    }
+                } else {
+                    if (document.exitFullscreen) {
+                        document.exitFullscreen();
+                    } else if (document.webkitExitFullscreen) {
+                        document.webkitExitFullscreen();
+                    }
+                }
+            }
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            update3DUIProjections();
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if (gameState === 'PLAYING') {
+                updateCustomersAnimation();
+                gameLoop();
+            }
+            renderer.render(scene, camera);
+        }
+
+        window.onload = () => {
+            init3D();
+            animate();
+        };
+    </script>
+</body>
+</html>
