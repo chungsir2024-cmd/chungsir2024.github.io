@@ -1,9 +1,9 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-HK">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>我的分數薄餅店</title>
+    <title>我的分數薄餅店 - 試算表純同步版</title>
     <style>
         * { 
             box-sizing: border-box; 
@@ -27,49 +27,57 @@
         .ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 15px; }
         .interactive { pointer-events: auto; }
 
-        /* 獨立最高層級的全螢幕按鈕，解決 iPad 觸控失效問題 */
+        /* 特教高對比全螢幕按鈕 */
         #fullscreen-btn { 
             position: fixed; 
             top: 15px; 
             right: 15px; 
             z-index: 999; 
-            padding: 10px 16px; 
-            font-size: 0.95rem; 
-            background: rgba(0,0,0,0.8); 
-            border: 1.5px solid #fff; 
-            color: #fff; 
-            border-radius: 10px; 
+            padding: 12px 20px; 
+            font-size: 1.4rem; 
+            background: rgba(0,0,0,0.85); 
+            border: 2px solid #ffca28; 
+            color: #ffca28; 
+            border-radius: 14px; 
             cursor: pointer; 
             font-weight: bold; 
             pointer-events: auto !important;
             touch-action: manipulation;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            min-height: 54px;
         }
+        #fullscreen-btn:active { transform: scale(0.95); }
 
-        #main-menu { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 20; background: rgba(0,0,0,0.4); display: flex; flex-direction: column; justify-content: center; align-items: center; transition: opacity 0.8s ease; }
-        .title { font-size: 3.2rem; font-weight: 900; color: #ffca28; text-shadow: 4px 4px 0 #d84315, 0 0 20px rgba(255,193,7,0.6); margin-bottom: 25px; letter-spacing: 2px; text-align: center; }
-        .menu-btns { display: flex; flex-direction: column; gap: 15px; width: 240px; }
+        #main-menu { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 20; background: rgba(0,0,0,0.55); display: flex; flex-direction: column; justify-content: center; align-items: center; transition: opacity 0.8s ease; }
+        .title { font-size: 3.8rem; font-weight: 900; color: #ffca28; text-shadow: 4px 4px 0 #d84315, 0 0 25px rgba(255,193,7,0.7); margin-bottom: 30px; letter-spacing: 3px; text-align: center; }
+        .menu-btns { display: flex; flex-direction: column; gap: 20px; width: 340px; max-width: 90%; }
         
+        /* 特教極大化觸控按鈕 */
         .btn { 
-            padding: 14px 22px; 
-            font-size: 1.15rem; 
-            font-weight: bold; 
+            padding: 18px 28px; 
+            font-size: 2rem; 
+            font-weight: 900; 
             border: none; 
-            border-radius: 14px; 
+            border-radius: 20px; 
             cursor: pointer; 
             background: #ff7043; 
             color: white; 
-            box-shadow: 0 5px 0 #d84315, 0 8px 12px rgba(0,0,0,0.3); 
+            box-shadow: 0 6px 0 #d84315, 0 10px 15px rgba(0,0,0,0.4); 
             transition: transform 0.1s ease, background 0.1s ease; 
             text-align: center;
-            min-height: 52px; 
+            min-height: 72px; 
             touch-action: manipulation;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            letter-spacing: 1px;
         }
-        .btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #d84315; }
-        .btn-secondary { background: #26a69a; box-shadow: 0 5px 0 #00695c; }
+        .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #d84315; }
+        .btn-secondary { background: #26a69a; box-shadow: 0 6px 0 #00695c; }
+        .btn-success { background: #4caf50; box-shadow: 0 6px 0 #2e7d32; }
 
-        #difficulty-select { display: none; margin-top: 10px; background: rgba(255,255,255,0.95); border-radius: 12px; padding: 10px; flex-direction: column; gap: 8px; box-shadow: 0 10px 20px rgba(0,0,0,0.3); }
-        .diff-opt { padding: 10px; color: #333; font-weight: bold; cursor: pointer; border-radius: 6px; text-align: center; font-size: 1.1rem; }
+        #difficulty-select { display: none; margin-top: 10px; background: rgba(255,255,255,0.95); border-radius: 16px; padding: 12px; flex-direction: column; gap: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.4); }
+        .diff-opt { padding: 14px; color: #333; font-weight: bold; cursor: pointer; border-radius: 10px; text-align: center; font-size: 1.6rem; }
         .diff-opt.selected { background: #ff7043; color: white; }
 
         /* 頂部 HUD 資訊列 */
@@ -85,42 +93,84 @@
             pointer-events: none;
         }
         .hud-game-only { display: none; }
-        .hud-card { background: rgba(0,0,0,0.75); backdrop-filter: blur(5px); border: 2px solid #ffca28; border-radius: 12px; padding: 10px 18px; font-size: 1.25rem; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.3); pointer-events: auto; }
-        .combo-badge { color: #ff4081; font-size: 1.4rem; margin-left: 10px; }
+        .hud-card { background: rgba(0,0,0,0.85); backdrop-filter: blur(6px); border: 3px solid #ffca28; border-radius: 16px; padding: 12px 22px; font-size: 1.8rem; font-weight: bold; box-shadow: 0 6px 15px rgba(0,0,0,0.4); pointer-events: auto; }
+        .combo-badge { color: #ff4081; font-size: 2rem; margin-left: 10px; font-weight: 900; }
 
+        /* 下方操作按鈕列 */
         #action-bar { 
             display: none; 
             position: absolute; 
             z-index: 15; 
             flex-direction: row; 
-            gap: 12px; 
+            gap: 16px; 
             transform: translate(-50%, 0); 
             pointer-events: auto;
             white-space: nowrap;
         }
-        .btn-undo { background: #78909c; box-shadow: 0 5px 0 #455a64; }
+        .btn-undo { background: #78909c; box-shadow: 0 6px 0 #455a64; font-size: 1.8rem; }
 
-        .bubble { position: absolute; background: white; color: #d32f2f; border: 3px solid #333; border-radius: 20px; padding: 10px 18px; font-size: 1.7rem; font-weight: 900; box-shadow: 0 6px 12px rgba(0,0,0,0.3); transform: translate(-50%, -100%); display: none; pointer-events: none; z-index: 15; }
-        .bubble::after { content: ''; position: absolute; bottom: -12px; left: 50%; transform: translateX(-50%); border-width: 12px 10px 0; border-style: solid; border-color: #333 transparent; display: block; width: 0; }
+        /* 客人題目氣泡 */
+        .bubble { 
+            position: absolute; 
+            background: #ffffff; 
+            color: #d32f2f; 
+            border: 4px solid #222; 
+            border-radius: 24px; 
+            padding: 12px 24px; 
+            font-size: 2.5rem; 
+            font-weight: 900; 
+            box-shadow: 0 8px 18px rgba(0,0,0,0.4); 
+            transform: translate(-50%, -100%); 
+            display: none; 
+            pointer-events: none; 
+            z-index: 15; 
+        }
+        .bubble::after { content: ''; position: absolute; bottom: -14px; left: 50%; transform: translateX(-50%); border-width: 14px 12px 0; border-style: solid; border-color: #222 transparent; display: block; width: 0; }
 
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.75); z-index: 100; justify-content: center; align-items: center; }
-        .modal-content { background: #fff; color: #333; border-radius: 18px; padding: 25px; width: 90%; max-width: 440px; position: relative; box-shadow: 0 15px 30px rgba(0,0,0,0.5); text-align: center; }
-        .close-btn { position: absolute; top: 12px; right: 18px; font-size: 2rem; font-weight: bold; cursor: pointer; color: #888; }
-        .input-group { margin: 20px 0; }
-        .input-group input { width: 100%; padding: 14px; font-size: 1.2rem; border: 2px solid #ccc; border-radius: 10px; text-align: center; }
+        /* 彈出視窗 Modal */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.82); z-index: 100; justify-content: center; align-items: center; }
+        .modal-content { background: #fff; color: #222; border-radius: 24px; padding: 25px; width: 92%; max-width: 540px; position: relative; box-shadow: 0 20px 40px rgba(0,0,0,0.6); text-align: center; border: 4px solid #ffca28; }
+        .close-btn { position: absolute; top: 14px; right: 20px; font-size: 2.8rem; font-weight: bold; cursor: pointer; color: #666; }
         
-        .leaderboard-tabs { display: flex; justify-content: center; gap: 8px; margin-bottom: 15px; }
-        .tab-btn { padding: 8px 16px; border: 1px solid #ff7043; background: #fff; color: #ff7043; border-radius: 20px; cursor: pointer; font-weight: bold; font-size: 1rem; }
-        .tab-btn.active { background: #ff7043; color: #fff; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { padding: 10px; text-align: center; border-bottom: 1px solid #eee; font-size: 1.05rem; }
-        th { background: #f5f5f5; color: #555; }
+        /* 登記視窗欄位 */
+        .input-group { margin: 20px 0; display: flex; flex-direction: column; gap: 16px; text-align: left; }
+        .input-label { font-size: 1.6rem; font-weight: 900; color: #d84315; display: flex; align-items: center; gap: 8px; }
+        .input-group input { 
+            width: 100%; 
+            padding: 16px 20px; 
+            font-size: 2rem; 
+            font-weight: bold; 
+            border: 3px solid #ff7043; 
+            border-radius: 14px; 
+            text-align: center; 
+            color: #333; 
+            background: #fffde7;
+            outline: none;
+        }
+        .input-group input:focus { border-color: #26a69a; background: #ffffff; }
+
+        /* 班別快捷按鈕：4A, 4B, 愛班, 孝班 */
+        .quick-class-btns { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 6px; }
+        .quick-tag { background: #e0f2f1; color: #00695c; font-size: 1.5rem; font-weight: bold; padding: 10px 18px; border-radius: 12px; border: 2px solid #26a69a; cursor: pointer; }
+        .quick-tag:active { background: #26a69a; color: white; }
+
+        .form-error-msg { display: none; background: #ffebee; color: #c62828; border: 2px solid #ef5350; padding: 10px; border-radius: 10px; font-size: 1.4rem; font-weight: bold; margin-bottom: 12px; }
+
+        /* 排行榜表格 */
+        table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        th, td { padding: 12px 8px; text-align: center; border-bottom: 2px solid #eee; font-size: 1.4rem; }
+        th { background: #fff3e0; color: #d84315; font-size: 1.5rem; font-weight: bold; }
+
+        .stats-summary { background: #f5f5f5; border-radius: 16px; padding: 16px; margin: 15px 0; text-align: left; font-size: 1.4rem; color: #333; line-height: 1.8; border: 2px dashed #ff7043; }
+        .stats-item { display: flex; justify-content: space-between; margin-bottom: 6px; }
+        .stats-label { font-weight: bold; color: #555; }
+        .stats-val { font-weight: 900; color: #d84315; }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
 
-    <!-- 最高層級按鈕：解決首頁無法點擊的問題 -->
+    <!-- 全螢幕按鈕 -->
     <button id="fullscreen-btn" onclick="toggleFullscreen()">⛶ 新分頁全螢幕</button>
 
     <div id="canvas-container"></div>
@@ -128,21 +178,21 @@
     <div class="ui-layer">
         <div id="hud-bar">
             <div id="score-card" class="hud-card hud-game-only">得分: <span id="score-val">0</span> <span id="combo-val" class="combo-badge"></span></div>
-            <!-- 人數卡片預留與全螢幕按鈕錯開的高度 (margin-top: 50px) -->
-            <div id="queue-card" class="hud-card hud-game-only" style="border-color: #ff5252; margin-top: 50px;">排隊人數: <span id="queue-val">0</span>/5</div>
+            <div id="queue-card" class="hud-card hud-game-only" style="border-color: #ff5252; margin-top: 60px;">排隊人數: <span id="queue-val">0</span>/5</div>
         </div>
 
         <div id="action-bar" class="interactive">
             <button class="btn btn-undo" onclick="popSliceFromBox()">↩ 退回</button>
-            <button class="btn" style="background:#4caf50; box-shadow: 0 5px 0 #2e7d32;" onclick="submitBox()">蓋上盒蓋出餐！</button>
+            <button class="btn btn-success" onclick="submitBox()">蓋上盒蓋出餐！</button>
         </div>
     </div>
 
+    <!-- 主選單 -->
     <div id="main-menu">
-        <div class="title">我的分數薄餅店</div>
+        <div class="title">🍕 我的分數薄餅店</div>
         <div class="menu-btns interactive">
-            <button class="btn" onclick="openNameModal()">開始遊戲</button>
-            <button class="btn btn-secondary" onclick="openLeaderboard()">排行榜</button>
+            <button class="btn" onclick="openRegistrationModal()">開始遊戲</button>
+            <button class="btn btn-secondary" onclick="openLeaderboard()">🏆 龍虎榜</button>
             <button class="btn btn-secondary" onclick="toggleDiffSelect()">難度: <span id="current-diff-label">中</span></button>
             
             <div id="difficulty-select">
@@ -153,51 +203,121 @@
         </div>
     </div>
 
+    <!-- 題目氣泡 -->
     <div id="customer-bubble" class="bubble">1/2</div>
 
-    <div id="name-modal" class="modal">
+    <!-- 學生登記挑戰視窗 -->
+    <div id="registration-modal" class="modal">
         <div class="modal-content">
-            <h3>請輸入大廚名字</h3>
+            <h2 style="font-size: 2.4rem; color: #d84315; margin-bottom: 15px;">📝 學生登記挑戰</h2>
+            
+            <div id="reg-error-msg" class="form-error-msg">⚠️ 請先選擇班別與輸入姓名喔！</div>
+
             <div class="input-group">
-                <input type="text" id="player-name-input" maxlength="12" value="分數大廚">
+                <label class="input-label">🏫 1. 班別：</label>
+                <input type="text" id="player-class-input" maxlength="10" placeholder="例如：4A">
+                <div class="quick-class-btns">
+                    <span class="quick-tag" onclick="setQuickClass('4A')">4A</span>
+                    <span class="quick-tag" onclick="setQuickClass('4B')">4B</span>
+                    <span class="quick-tag" onclick="setQuickClass('愛班')">愛班</span>
+                    <span class="quick-tag" onclick="setQuickClass('孝班')">孝班</span>
+                </div>
             </div>
-            <button class="btn interactive" style="width:100%" onclick="startGame()">進入薄餅店</button>
+
+            <div class="input-group">
+                <label class="input-label">👤 2. 姓名：</label>
+                <input type="text" id="player-name-input" maxlength="12" placeholder="例如：陳大文">
+            </div>
+
+            <button class="btn interactive" style="width:100%; margin-top: 10px;" onclick="startGame()">🚀 進入薄餅店</button>
         </div>
     </div>
 
+    <!-- 🏆 龍虎榜視窗 -->
     <div id="leaderboard-modal" class="modal">
         <div class="modal-content">
             <span class="close-btn" onclick="closeModal('leaderboard-modal')">&times;</span>
-            <h3 style="margin-bottom:12px;">🏆 英雄排行榜</h3>
-            <div class="leaderboard-tabs">
-                <button class="tab-btn active" id="tab-Low" onclick="loadLeaderboard('Low')">低難度</button>
-                <button class="tab-btn" id="tab-Medium" onclick="loadLeaderboard('Medium')">中難度</button>
-                <button class="tab-btn" id="tab-High" onclick="loadLeaderboard('High')">高難度</button>
+            <h2 style="margin-bottom:6px; font-size:2.4rem; color:#ff7043;">🏆 龍虎榜</h2>
+            <div style="margin-bottom: 12px; font-size: 1.2rem; color: #666;">數據即時同步自 Google Sheets 統計表</div>
+            
+            <div style="max-height: 340px; overflow-y: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width:22%;">排名</th>
+                            <th style="width:25%;">班別</th>
+                            <th style="width:30%;">名字</th>
+                            <th style="width:23%;">分數</th>
+                        </tr>
+                    </thead>
+                    <tbody id="leaderboard-body">
+                        <tr><td colspan="4">⏳ 正在連線至 Google Sheets 讀取最新排名...</td></tr>
+                    </tbody>
+                </table>
             </div>
-            <table>
-                <thead>
-                    <tr><th>排名</th><th>名字</th><th>分數</th></tr>
-                </thead>
-                <tbody id="leaderboard-body">
-                    <tr><td colspan="3">載入中...</td></tr>
-                </tbody>
-            </table>
         </div>
     </div>
 
+    <!-- 遊戲結束視窗 -->
     <div id="gameover-modal" class="modal">
         <div class="modal-content">
-            <h2 style="color:#d32f2f; font-size:2rem; margin-bottom:10px;">GAME OVER</h2>
-            <p>客人都排到店外啦！</p>
-            <div style="margin: 20px 0; font-size: 1.5rem; font-weight: bold;">
-                最終得分：<span id="final-score" style="color:#ff7043;">0</span>
+            <h2 style="color:#d32f2f; font-size:2.6rem; margin-bottom:10px;">🎉 挑戰結束！</h2>
+            <p style="font-size:1.5rem; color:#555;">客人都排到店外啦～辛苦大廚了！</p>
+            
+            <div class="stats-summary">
+                <div class="stats-item">
+                    <span class="stats-label">👤 學生：</span>
+                    <span class="stats-val" id="summary-student-name">--</span>
+                </div>
+                <div class="stats-item">
+                    <span class="stats-label">🏫 班別：</span>
+                    <span class="stats-val" id="summary-student-class">--</span>
+                </div>
+                <div class="stats-item">
+                    <span class="stats-label">⭐ 最終得分：</span>
+                    <span class="stats-val" id="summary-score">0</span>
+                </div>
+                <div class="stats-item">
+                    <span class="stats-label">❌ 錯誤次數：</span>
+                    <span class="stats-val" id="summary-error-count">0 次</span>
+                </div>
+                <div class="stats-item">
+                    <span class="stats-label">⏱️ 遊戲耗時：</span>
+                    <span class="stats-val" id="summary-game-time">0 秒</span>
+                </div>
             </div>
-            <button class="btn interactive" style="width:100%" onclick="backToMenu()">返回主選單</button>
+
+            <button class="btn interactive" style="width:100%" onclick="backToMenu()">🔄 返回主選單</button>
+        </div>
+    </div>
+
+    <!-- 提示視窗 -->
+    <div id="custom-notice-modal" class="modal">
+        <div class="modal-content" style="border-color:#26a69a;">
+            <h2 id="custom-notice-title" style="color:#00695c; font-size:2.4rem; margin-bottom:15px;">💡 提示資訊</h2>
+            <p id="custom-notice-text" style="font-size:1.6rem; color:#333; line-height:1.6; margin-bottom:25px; text-align:left;"></p>
+            <button class="btn btn-secondary interactive" style="width:100%" onclick="closeModal('custom-notice-modal')">明白 / 我知道了</button>
         </div>
     </div>
 
     <script>
-        /* 1. 安全延遲載入的 iOS / iPad 音效系統 */
+        // =========================================================================
+        // 📊 Google Form & Google Sheets 連線設定
+        // =========================================================================
+        const GOOGLE_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSd_BYjYPUGeYsYdvi3AWR8m7qh1YJHdiwD68-9BuzIAG87-jQ/formResponse";
+        
+        const GOOGLE_FORM_ENTRIES = {
+            name: "entry.1390982118",        // B欄「姓名」
+            className: "entry.656823273",    // C欄「班別」
+            errorCount: "entry.642911833",   // 錯誤次數
+            errorDetails: "entry.1300890948", // 錯誤細節
+            gameTime: "entry.810879329",      // 遊戲耗時
+            score: "entry.662037234"         // 最終分數
+        };
+
+        const SPREADSHEET_ID = "1uWLRDtpJZ0vRO48BNZLG8ZwVPMWaBeohNX7qJJuMIOA";
+
+        /* 1. iOS / iPad 音效系統 */
         let AudioCtx = null;
         function getAudioContext() {
             if (!AudioCtx) {
@@ -263,17 +383,21 @@
             }
         }
 
-        const GAS_API_URL = "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL"; 
-
+        /* 2. 遊戲狀態與變數 */
         let gameState = 'MENU'; 
         let currentDifficulty = 'Medium';
         let playerName = "分數大廚";
+        let playerClass = "4A";
         let score = 0;
         let combo = 0;
         let queue = [];
         let boxSlices = []; 
         let spawnTimer = null;
         let spawnInterval = 6000; 
+
+        let errorCount = 0;
+        let errorDetails = [];
+        let gameStartTime = 0;
 
         const DIFF_CONFIG = {
             'Low': { startSpeed: 8000, minSpeed: 3500, slices: [4, 8] },
@@ -476,13 +600,28 @@
             el.style.display = (el.style.display === 'flex') ? 'none' : 'flex';
         }
 
-        function openNameModal() {
-            document.getElementById('name-modal').style.display = 'flex';
+        function openRegistrationModal() {
+            document.getElementById('reg-error-msg').style.display = 'none';
+            document.getElementById('registration-modal').style.display = 'flex';
+        }
+
+        function setQuickClass(className) {
+            document.getElementById('player-class-input').value = className;
         }
 
         function startGame() {
-            playerName = document.getElementById('player-name-input').value || "分數大廚";
-            closeModal('name-modal');
+            const classVal = document.getElementById('player-class-input').value.trim();
+            const nameVal = document.getElementById('player-name-input').value.trim();
+
+            if (!classVal || !nameVal) {
+                document.getElementById('reg-error-msg').style.display = 'block';
+                return;
+            }
+
+            document.getElementById('reg-error-msg').style.display = 'none';
+            playerClass = classVal;
+            playerName = nameVal;
+            closeModal('registration-modal');
             
             document.getElementById('main-menu').style.opacity = '0';
             setTimeout(() => {
@@ -496,6 +635,10 @@
             gameState = 'PLAYING';
             score = 0;
             combo = 0;
+            errorCount = 0;
+            errorDetails = [];
+            gameStartTime = Date.now();
+
             queue = [];
             resetBox();
             spawnInterval = DIFF_CONFIG[currentDifficulty].startSpeed;
@@ -725,6 +868,20 @@
             });
         }
 
+        function formatBoxSlicesSummary(slices) {
+            if (!slices || slices.length === 0) return "空盒(0塊)";
+            const counts = {};
+            slices.forEach(s => {
+                const denom = Math.round(1 / s);
+                counts[denom] = (counts[denom] || 0) + 1;
+            });
+            const parts = [];
+            for (let denom in counts) {
+                parts.push(`${counts[denom]}/${denom}`);
+            }
+            return parts.join(" + ");
+        }
+
         function submitBox() {
             if (gameState !== 'PLAYING' || queue.length === 0) return;
 
@@ -742,6 +899,11 @@
                 playSound('wrong');
                 combo = 0;
                 score = Math.max(0, score - 50);
+
+                errorCount++;
+                const targetStr = `${currentCustomer.targetNumer}/${currentCustomer.targetDenom}`;
+                const submittedStr = formatBoxSlicesSummary(boxSlices);
+                errorDetails.push(`[第${errorCount}次] 目標:${targetStr} | 學生提交:${submittedStr}`);
             }
 
             resetBox();
@@ -775,74 +937,169 @@
             playSound('wrong');
             
             document.getElementById('customer-bubble').style.display = 'none';
-            document.getElementById('final-score').innerText = score;
+            
+            const durationSec = Math.round((Date.now() - gameStartTime) / 1000);
+            const minutes = Math.floor(durationSec / 60);
+            const seconds = durationSec % 60;
+            const timeFormatted = `${minutes > 0 ? minutes + '分' : ''}${seconds}秒`;
+
+            document.getElementById('summary-student-name').innerText = playerName;
+            document.getElementById('summary-student-class').innerText = playerClass;
+            document.getElementById('summary-score').innerText = score;
+            document.getElementById('summary-error-count').innerText = `${errorCount} 次`;
+            document.getElementById('summary-game-time').innerText = timeFormatted;
+
             document.getElementById('gameover-modal').style.display = 'flex';
 
-            submitScoreToGAS(playerName, score, currentDifficulty, combo);
+            // 即時寫入 Google Form / Sheets
+            sendDataToGoogleForm(playerName, playerClass, errorCount, errorDetails, timeFormatted, score);
         }
 
-        function submitScoreToGAS(name, score, difficulty, maxCombo) {
-            if (!GAS_API_URL || GAS_API_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) {
-                saveLocalScore(name, score, difficulty);
-                return;
+        function sendDataToGoogleForm(name, className, errCount, errDetailsList, timeSpentStr, finalScore) {
+            const formData = new URLSearchParams();
+            if (GOOGLE_FORM_ENTRIES.name) formData.append(GOOGLE_FORM_ENTRIES.name, name);
+            if (GOOGLE_FORM_ENTRIES.className) formData.append(GOOGLE_FORM_ENTRIES.className, className);
+            if (GOOGLE_FORM_ENTRIES.errorCount) formData.append(GOOGLE_FORM_ENTRIES.errorCount, errCount);
+            if (GOOGLE_FORM_ENTRIES.errorDetails) {
+                const detailsStr = (errDetailsList && errDetailsList.length > 0) ? errDetailsList.join("; ") : "無錯誤紀錄";
+                formData.append(GOOGLE_FORM_ENTRIES.errorDetails, detailsStr);
             }
+            if (GOOGLE_FORM_ENTRIES.gameTime) formData.append(GOOGLE_FORM_ENTRIES.gameTime, timeSpentStr);
+            if (GOOGLE_FORM_ENTRIES.score) formData.append(GOOGLE_FORM_ENTRIES.score, finalScore);
 
-            fetch(GAS_API_URL, {
+            fetch(GOOGLE_FORM_URL, {
                 method: 'POST',
                 mode: 'no-cors',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, score, difficulty, maxCombo })
-            }).catch(err => console.error("API 傳送錯誤:", err));
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: formData.toString()
+            }).then(() => {
+                console.log("✅ 數據已成功發送至 Google Form！");
+            }).catch(err => console.error("❌ Google Form 發送失敗:", err));
         }
 
+        // =========================================================================
+        // 🏆 龍虎榜：100% 直連 GOOGLE SHEETS (純線上同步，無視覺快取污染)
+        // =========================================================================
         function openLeaderboard() {
             document.getElementById('leaderboard-modal').style.display = 'flex';
-            loadLeaderboard(currentDifficulty);
+            loadLeaderboardFromSheet();
         }
 
-        function loadLeaderboard(diff) {
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-            document.getElementById(`tab-${diff}`).classList.add('active');
-
+        function loadLeaderboardFromSheet() {
             const tbody = document.getElementById('leaderboard-body');
-            tbody.innerHTML = '<tr><td colspan="3">載入中...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4">⏳ 正在連線至 Google Sheets 讀取最新排名...</td></tr>';
 
-            if (!GAS_API_URL || GAS_API_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) {
-                const localData = JSON.parse(localStorage.getItem(`lb_${diff}`) || '[]');
-                renderLeaderboardTable(localData);
-                return;
-            }
+            // 移除舊的 JSONP 標籤以確保拿取最新無暫存數據
+            const oldScript = document.getElementById('gviz-jsonp-script');
+            if (oldScript) oldScript.remove();
 
-            fetch(`${GAS_API_URL}?difficulty=${diff}`)
-                .then(res => res.json())
-                .then(data => renderLeaderboardTable(data))
-                .catch(() => {
-                    const localData = JSON.parse(localStorage.getItem(`lb_${diff}`) || '[]');
-                    renderLeaderboardTable(localData);
-                });
+            // 透過 JSONP 注入動態 script 標籤，徹底消除 CORS 阻擋問題
+            const script = document.createElement('script');
+            script.id = 'gviz-jsonp-script';
+            script.src = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=responseHandler:handleLeaderboardData&t=${Date.now()}`;
+            script.onerror = function() {
+                tbody.innerHTML = '<tr><td colspan="4">⚠️ 無法連線至 Google Sheets，請檢查網路。</td></tr>';
+            };
+            document.body.appendChild(script);
         }
+
+        // 接收來自 Google Sheets 回傳數據的全域 Callback 函式 (已完全移除 localStorage 合併)
+        window.handleLeaderboardData = function(response) {
+            const tbody = document.getElementById('leaderboard-body');
+            try {
+                if (!response || !response.table || !response.table.rows || response.table.rows.length === 0) {
+                    renderLeaderboardTable([]);
+                    return;
+                }
+
+                const cols = response.table.cols || [];
+                const rows = response.table.rows || [];
+
+                let classIdx = 1;
+                let nameIdx = 2;
+                let scoreIdx = 6;
+
+                cols.forEach((col, idx) => {
+                    if (col && col.label) {
+                        const label = col.label.trim();
+                        if (label.includes('班')) classIdx = idx;
+                        if (label.includes('姓') || label.includes('名')) nameIdx = idx;
+                        if (label.includes('分') || label.toLowerCase().includes('score')) scoreIdx = idx;
+                    }
+                });
+
+                let scores = [];
+
+                rows.forEach(row => {
+                    if (!row || !row.c) return;
+
+                    let valB = row.c[1] ? (row.c[1].v !== null ? String(row.c[1].v).trim() : '') : '';
+                    let valC = row.c[2] ? (row.c[2].v !== null ? String(row.c[2].v).trim() : '') : '';
+                    
+                    let rawScore = (scoreIdx < row.c.length && row.c[scoreIdx] && row.c[scoreIdx].v !== null) ? row.c[scoreIdx].v : 0;
+                    let scoreNum = parseInt(rawScore, 10);
+                    if (isNaN(scoreNum)) scoreNum = 0;
+
+                    let classVal = '--';
+                    let nameVal = '大廚';
+
+                    // 班別與姓名自動偵測轉置邏輯
+                    if (valB.match(/^(4A|4B|愛班|孝班|1A|1B|2A|2B|3A|3B|5A|5B|6A|6B|特班)$/i)) {
+                        classVal = valB;
+                        nameVal = valC || '大廚';
+                    } else if (valC.match(/^(4A|4B|愛班|孝班|1A|1B|2A|2B|3A|3B|5A|5B|6A|6B|特班)$/i)) {
+                        classVal = valC;
+                        nameVal = valB || '大廚';
+                    } else {
+                        nameVal = valB || '大廚';
+                        classVal = valC || '--';
+                    }
+
+                    if (valB || valC) {
+                        scores.push({
+                            className: classVal,
+                            name: nameVal,
+                            score: scoreNum
+                        });
+                    }
+                });
+
+                // 僅依分數由高至低排序
+                scores.sort((a, b) => b.score - a.score);
+
+                // 渲染前 10 名
+                renderLeaderboardTable(scores.slice(0, 10));
+
+            } catch (err) {
+                console.error("解析 Google Sheets 資料失敗:", err);
+                renderLeaderboardTable([]);
+            }
+        };
 
         function renderLeaderboardTable(data) {
             const tbody = document.getElementById('leaderboard-body');
             if (!data || data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="3">暫無紀錄</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="4">目前尚無排名紀錄喔！快來挑戰！</td></tr>';
                 return;
             }
-            tbody.innerHTML = data.slice(0, 5).map((row, i) => `
-                <tr>
-                    <td>${i + 1}</td>
-                    <td>${row.name}</td>
-                    <td>${row.score}</td>
-                </tr>
-            `).join('');
+
+            const rankIcons = ['🥇', '🥈', '🥉'];
+            tbody.innerHTML = data.map((row, i) => {
+                const rankDisplay = i < 3 ? `${rankIcons[i]} ${i + 1}` : `${i + 1}`;
+                const rowBg = i === 0 ? 'background:#fff8e1;' : (i % 2 === 1 ? 'background:#fafafa;' : '');
+                return `
+                    <tr style="${rowBg}">
+                        <td style="font-weight:bold; font-size:1.4rem;">${rankDisplay}</td>
+                        <td style="font-weight:bold; color:#00695c;">${escapeHtml(row.className)}</td>
+                        <td>${escapeHtml(row.name)}</td>
+                        <td style="font-weight:900; color:#d84315; font-size:1.4rem;">${row.score}</td>
+                    </tr>
+                `;
+            }).join('');
         }
 
-        function saveLocalScore(name, score, diff) {
-            const key = `lb_${diff}`;
-            const list = JSON.parse(localStorage.getItem(key) || '[]');
-            list.push({ name, score });
-            list.sort((a, b) => b.score - a.score);
-            localStorage.setItem(key, JSON.stringify(list));
+        function escapeHtml(str) {
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         }
 
         function closeModal(id) {
@@ -863,14 +1120,19 @@
             gameState = 'MENU';
         }
 
-        /* 智慧判斷全螢幕 / 新分頁邏輯 (含 Google 沙盒提示) */
+        function showCustomNotice(title, text) {
+            document.getElementById('custom-notice-title').innerText = title;
+            document.getElementById('custom-notice-text').innerText = text;
+            document.getElementById('custom-notice-modal').style.display = 'flex';
+        }
+
         function toggleFullscreen() {
             const isIframe = (window.self !== window.top);
             const currentUrl = window.location.href;
             const isGoogleSandbox = currentUrl.includes('googleusercontent.com') || currentUrl.startsWith('about:');
 
             if (isGoogleSandbox) {
-                alert("提示：您目前使用的是 Google Sites『嵌入程式碼』模式。如需在新分頁獨立開啟，請先將此網頁託管至 GitHub Pages，並改用『嵌入網址』方式放入 Google Sites！");
+                showCustomNotice("💡 Google 協作平台提示", "您目前使用的是『嵌入程式碼』模式。如需在新分頁獨立開啟全螢幕，請先將此網頁託管至 GitHub Pages 或校內伺服器！");
                 return;
             }
 
